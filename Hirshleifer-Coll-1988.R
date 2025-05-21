@@ -1,6 +1,7 @@
 # file name: Hirshleifer-Coll-1988.R
 # author: Alexander Karl
-# date: 2025-02-23
+# create date: 2025-02-23
+# last update: 2025-05-20
 # This file is part of the Social-Simulation-Replication repository: https://github.com/Mocklerough/Social-Simulation-Replications
 
 # Authors: Jack Hirshleifer, Juan Carlos Martinez Coll
@@ -22,7 +23,7 @@
 
 rm(list = ls())
 library(tidyverse) # tibble, dplyr, tidyr, ggplot2
-library(gridExtra) # assist ggplot2
+library(gridExtra) # assist ggplot2 graphs
 
 # Helper Functions --------------------------------------------------------
 
@@ -36,10 +37,8 @@ build_payoff_mx <- function(strategies, payoff_data) {
   #     - rows: ego's strategy
   #     - cols: alter's strategy
   #     - cells: ego's payoff against alter
-
-  stopifnot(length(strategies) ^ 2 == length(payoff_data))
-  
-  payoff_mx <- matrix(data = payoff_data, 
+  stopifnot(length(strategies) ^ 2 == length(payoff_data))                      # error check, payoff_data must fit the strategies matrix
+  payoff_mx <- matrix(data = payoff_data,                                       # matrix calculating payoff of each strategy i agaist strategy j
                       byrow = TRUE,
                       nrow = length(strategies), ncol = length(strategies), 
                       dimnames = list(strategies, strategies))
@@ -68,36 +67,29 @@ simulate_hirshleifer_coll <- function(payoff_mx, start_pop, k, generations) {
   #     - rows: each strategy
   #     - cols: each timestep from 0 to `generations`
   #     - cells: strategy's population at that timestep
-  
-  # pull out data from payoff_mx
-  strategies  <- rownames(payoff_mx)
-  
-  # hold results
+  strategies  <- rownames(payoff_mx)                                            # pull out data from payoff_mx
   results <- matrix(data = NA, ncol = length(strategies), nrow = generations + 1)
   colnames(results) <- strategies
   
-  # calculate population at each timestep
-  results[1,] <- start_pop  # note: generation = 0 is row = 1
+  results[1,] <- start_pop  # calculate population at each timestep # note: generation = 0 is row = 1
   
-  # use the current population to calculate next population
   for (g in 1:generations) {
-    pop_change <- calc_pop_change(payoff_mx, results[g,], k)
+    pop_change <- calc_pop_change(payoff_mx, results[g,], k)                    # use the current population to calculate next population
     results[g+1,] <- results[g,] + pop_change
   }
   
-  # tidy data to use for plotting
-  results <- 
+  results <-                                                                    # tidy data to use for plotting
     results |>
     as_tibble() |>
-    mutate(generation = 0:generations) |>
-    pivot_longer(!generation, names_to = "strategy", values_to = "population")
-
+    mutate(generation = 0:generations) |>                                       # add column indicationg generation number
+    pivot_longer(!generation, names_to = "strategy", values_to = "population")  # reshape data, now each combinatino of strategy-poulation-generation is one line
+  
   return(results)
 }
 
 # Define Strategies -------------------------------------------------------
 
-TABLE_1 <- list()
+TABLE_1 <- list()                                                               # strategies as described in original paper
 
 # MATRIX I
 TABLE_1$MATRIX_I <- 
@@ -105,15 +97,12 @@ TABLE_1$MATRIX_I <-
     strategies = c("COOPERATE", "DEFECT"),
     payoff_data = c(3,1,
                     4,2))
-
 # MATRIX II
 TABLE_1$MATRIX_II <- 
   build_payoff_mx(
     strategies = c("COOPERATE", "DEFECT"),
     payoff_data = c(3,0,
                     5,1))
-
-
 # MATRIX III
 TABLE_1$MATRIX_III <- 
   build_payoff_mx(
@@ -137,8 +126,6 @@ TABLE_1$MATRIX_V <-
     payoff_data = c(3,  0,  3,
                     5,  1,  1,
                     2.5,0.5,2.5))
-
-
 # MATRIX VI
 TABLE_1$MATRIX_VI <- 
   build_payoff_mx(
@@ -149,21 +136,19 @@ TABLE_1$MATRIX_VI <-
 
 # Run Simulations ---------------------------------------------------------
 
-# All Cases -----------------------
 
-start_time <- Sys.time()
 results <- list()
 plot_list <- list()
-for (mx_index in 1:length(TABLE_1)) {
-  mx_name <- names(TABLE_1[mx_index])
+for (mx_index in 1:length(TABLE_1)) {                                           # for each strategy represented in Table I of the article,
+  mx_name <- names(TABLE_1[mx_index])                                           # strategy names (cooperate, defect, etc)
   mx <- TABLE_1[[mx_index]]
   results[[mx_name]] <- 
-    simulate_hirshleifer_coll(
+    simulate_hirshleifer_coll(                                                  # run the above defined simulation  function to find matrix payoffs
       payoff_mx = mx, 
-      start_pop = rep(1/nrow(mx), nrow(mx)), # assume equal pop
+      start_pop = rep(1/nrow(mx), nrow(mx)),                                    # assume equal pop
       k = 0.01, 
       generations = 500)
-  plot_list[[mx_index]] <- 
+  plot_list[[mx_index]] <-                                                      # create table fit for grid.arrange() function for plotting
     results[[mx_name]] |>
     ggplot(aes(x = generation, y = population, color = strategy)) +
     geom_line() +
@@ -174,6 +159,3 @@ for (mx_index in 1:length(TABLE_1)) {
       y = "Population")
 }
 grid.arrange(grobs = plot_list, ncol = 2, nrow = 3)
-print(Sys.time() - start_time)
-
-
